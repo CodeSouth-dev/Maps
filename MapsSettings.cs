@@ -21,6 +21,12 @@ namespace Maps
         [Menu("Show Notifications", parentIndex = 0)]
         public ToggleNode ShowNotifications { get; set; } = new ToggleNode(true);
 
+        [Menu("Highlight in Vendor Windows", "Also highlight maps when buying from merchants/vendors", parentIndex = 0)]
+        public ToggleNode HighlightInVendor { get; set; } = new ToggleNode(true);
+
+        [Menu("Use Regex for Mod Matching", "Enable regex patterns instead of simple keyword matching", parentIndex = 0)]
+        public ToggleNode UseRegex { get; set; } = new ToggleNode(false);
+
         [Menu("Filter Criteria")]
         public EmptyNode FilterCriteria { get; set; }
 
@@ -75,13 +81,32 @@ namespace Maps
         [Menu("Overlay Background Opacity", parentIndex = 3)]
         public RangeNode<int> BackgroundOpacity { get; set; } = new RangeNode<int>(200, 0, 255);
 
+        [Menu("Filter Profiles")]
+        public EmptyNode FilterProfiles { get; set; }
+
+        [Menu("Active Profile", "Select which filter profile to use", parentIndex = 4)]
+        public ListNode ActiveProfile { get; set; } = new ListNode
+        {
+            Values = new System.Collections.Generic.List<string> { "Custom", "Juicing", "Boss Rush", "Safe Farming", "MF Farming", "Delirium", "Speedrun" },
+            Value = "Custom"
+        };
+
+        [Menu("Load Profile", "Apply the selected profile settings", parentIndex = 4)]
+        public ButtonNode LoadProfile { get; set; } = new ButtonNode();
+
+        [Menu("Save Current as Custom", "Save current settings to Custom profile", parentIndex = 4)]
+        public ButtonNode SaveCustomProfile { get; set; } = new ButtonNode();
+
         [Menu("Hotkeys")]
         public EmptyNode Hotkeys { get; set; }
 
-        [Menu("Toggle Overlay", parentIndex = 4)]
+        [Menu("Toggle Overlay", parentIndex = 5)]
         public HotkeyNode ToggleOverlayHotkey { get; set; } = new HotkeyNode(Keys.F9);
 
-        [Menu("Reload Filter", parentIndex = 4)]
+        [Menu("Reload Filter", parentIndex = 5)]
         public HotkeyNode ReloadFilterHotkey { get; set; } = new HotkeyNode(Keys.F10);
+
+        [Menu("Cycle Profiles", "Quickly switch between profiles", parentIndex = 5)]
+        public HotkeyNode CycleProfilesHotkey { get; set; } = new HotkeyNode(Keys.F11);
     }
 }

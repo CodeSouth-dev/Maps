@@ -48,6 +48,7 @@
   <ItemGroup>
     <Compile Include="MapsPlugin.cs" />
     <Compile Include="MapsSettings.cs" />
+    <Compile Include="FilterProfile.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\ExileApi.csproj">
