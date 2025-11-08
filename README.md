@@ -4,14 +4,17 @@ A powerful map analysis plugin for Path of Exile using ExileAPI. This plugin hel
 
 ## Features
 
-- **Real-time Map Analysis**: Automatically analyzes maps in your inventory and stash
+- **Real-time Map Analysis**: Automatically analyzes maps in your inventory, stash, and vendor windows
 - **Visual Highlighting**: Color-coded borders around maps (green=good, red=bad mods, white=meets criteria)
 - **Detailed Overlays**: Shows tier, quantity, rarity, and pack size at a glance
 - **Customizable Filters**: Set minimum requirements for tier, quantity, rarity, and pack size
 - **Mod Filtering**: Define good and bad mod keywords to automatically evaluate maps
+- **Regex Support**: Use advanced regex patterns for precise mod matching
+- **Profile System**: 6 preset profiles + custom profile for different playstyles
+- **Vendor Support**: Highlights maps when buying from merchants or trading with players
 - **Scoring System**: Automatically calculates a score for each map based on your preferences
 - **Interactive Tooltips**: Hover over maps to see full details and all mods
-- **Hotkey Support**: Quick toggle for overlays and filter reload
+- **Hotkey Support**: Quick toggle for overlays, filter reload, and profile cycling
 
 ## Installation
 
@@ -53,6 +56,8 @@ Press **F12** in-game to open the ExileAPI menu and navigate to the Maps plugin 
 - **Enable Map Highlighting**: Show colored borders around maps
 - **Enable Overlay Display**: Show stat overlays above maps
 - **Show Notifications**: Display alerts for exceptional maps
+- **Highlight in Vendor Windows**: Also highlight maps when buying from NPCs or trading
+- **Use Regex for Mod Matching**: Enable regex patterns instead of simple keywords
 
 ### Filter Criteria
 - **Minimum/Maximum Map Tier**: Set tier range (1-17)
@@ -74,9 +79,22 @@ Press **F12** in-game to open the ExileAPI menu and navigate to the Maps plugin 
 - **Text Size**: Size of overlay text (10-30)
 - **Overlay Background Opacity**: Transparency of text background (0-255)
 
+### Filter Profiles
+- **Active Profile**: Select from 7 preset profiles or use Custom
+  - **Custom**: Your personalized settings
+  - **Juicing**: High quantity/pack size for maximum loot (T14-T17, 80+ quant, 20+ pack)
+  - **Boss Rush**: Focused on boss content (T14-T17, 60+ quant, boss-related mods)
+  - **Safe Farming**: Avoids dangerous mods while maintaining decent returns
+  - **MF Farming**: Magic find optimized (60+ quant, 40+ rarity)
+  - **Delirium**: High pack size for delirium content (70+ quant, 25+ pack)
+  - **Speedrun**: Fast clear maps without slow mods (T14-T17, 50+ quant)
+- **Load Profile**: Apply the selected profile's settings
+- **Save Current as Custom**: Save your current settings to Custom profile
+
 ### Hotkeys
 - **Toggle Overlay** (default F9): Show/hide the stat overlays
 - **Reload Filter** (default F10): Reload mod keyword filters without restarting
+- **Cycle Profiles** (default F11): Quickly switch between filter profiles
 
 ## Usage
 
@@ -119,33 +137,103 @@ Maps are scored based on:
 
 Higher scores = better maps!
 
-## Customization Tips
+## Using Filter Profiles
 
-### For Juicing Maps
+The plugin comes with 6 preset profiles optimized for different playstyles:
+
+### Quick Start
+1. Press **F12** to open the menu
+2. Navigate to **Maps Analyzer → Filter Profiles**
+3. Select a profile from the **Active Profile** dropdown
+4. Click **Load Profile** button
+5. Start mapping!
+
+### Profile Details
+
+**Juicing** (Maximum Loot)
+- Tier 14-17 only
+- 80%+ quantity, 20%+ pack size
+- Good mods: beyond, breach, harbinger, legion, ritual, delirium, abyss, strongbox, shrine
+- Perfect for high-investment mapping
+
+**Boss Rush** (Guardian/Conqueror Farming)
+- Tier 14-17 only
+- 60%+ quantity
+- Good mods: boss, unique, guardian, conqueror, elder, shaper
+- Avoids quantity/rarity reduction mods
+
+**Safe Farming** (HC Viable)
+- All tiers
+- 40%+ quantity minimum
+- Filters dangerous mods: reflect, no regen, temporal chains, cannot leech, reduced recovery, player curses
+- Good for magic finding on tanky builds
+
+**MF Farming** (Magic Find)
+- All tiers
+- 60%+ quantity, 40%+ rarity, 15%+ pack
+- Prioritizes rarity/quantity mods
+- Great for item farming with MF gear
+
+**Delirium** (Simulacrum/Delirium Orbs)
+- Tier 14-17 only
+- 70%+ quantity, 25%+ pack size
+- Emphasizes pack density mods
+- Avoids slow/recovery mods
+
+**Speedrun** (Fast Clears)
+- Tier 14-17 only
+- 50%+ quantity, 10%+ pack
+- Avoids temporal chains, chill, reduced movement, stun immunity
+- Optimized for zoom builds
+
+### Creating Custom Filters
+
+1. Adjust settings to your preferences
+2. Click **Save Current as Custom**
+3. Your settings are now saved to the Custom profile
+4. Select "Custom" and click "Load Profile" anytime to restore
+
+### Quick Profile Switching
+
+Press **F11** (default) to cycle through all profiles without opening the menu. Great for switching between farming strategies on the fly!
+
+## Advanced: Regex Filtering
+
+Enable **Use Regex for Mod Matching** to use regular expressions instead of simple keywords.
+
+### Example Regex Patterns
+
+**Match multiple words with OR:**
 ```
-Minimum Quantity: 80
-Minimum Pack Size: 20
-Good Mods: beyond,breach,harbinger,legion,delirium,ritual
+beyond|breach|legion
 ```
 
-### For Safe Farming
+**Match "increased" but not "reduced":**
 ```
-Bad Mods: reflect,no regen,temporal chains,cannot leech,reduced recovery
-```
-
-### For Boss Rushing
-```
-Minimum Tier: 14
-Good Mods: boss
-Bad Mods: reduced quantity,reduced pack
+increased.*quantity
 ```
 
-### For MF Characters
+**Match pack size exactly:**
 ```
-Minimum Quantity: 60
-Minimum Rarity: 40
-Good Mods: rarity,quantity
+\d+%?\s*(increased|additional)\s*pack\s*size
 ```
+
+**Match reflect mods:**
+```
+reflect.*damage|damage.*reflect
+```
+
+**Exclude specific mods:**
+```
+^(?!.*reduced).*quantity
+```
+
+### Regex Tips
+- Use `|` for OR conditions
+- Use `.*` to match anything between words
+- Use `\d+` to match numbers
+- Use `^` and `$` for start/end of line
+- Invalid regex automatically falls back to keyword matching
 
 ## Troubleshooting
 
@@ -171,12 +259,14 @@ Good Mods: rarity,quantity
 
 ## Future Features (Planned)
 
-- Stash tab scanning without opening
-- Map base type filtering
-- Export/import filter profiles
-- Statistics tracking
+- Stash tab scanning without opening (currently requires stash to be visible)
+- Map base type filtering (e.g., only show Strand, Cemetery, etc.)
+- Export/import filter profiles to JSON files for sharing
+- Statistics tracking (maps run, loot gained, time spent)
 - Alert sounds for exceptional maps
 - Atlas region filtering
+- Map favorite/blacklist system
+- Integration with trading APIs
 
 ## Credits
 

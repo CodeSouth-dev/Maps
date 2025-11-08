@@ -7,6 +7,7 @@ using SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Maps
 {
@@ -16,6 +17,8 @@ namespace Maps
         private CachedValue<List<MapData>> _cachedMapData;
         private List<string> _goodModKeywords;
         private List<string> _badModKeywords;
+        private Dictionary<string, FilterProfile> _profiles;
+        private string _lastLoadedProfile = "Custom";
 
         public override bool Initialise()
         {
@@ -25,7 +28,14 @@ namespace Maps
             // Cache map data for 500ms to avoid constant recalculation
             _cachedMapData = new CachedValue<List<MapData>>(() => AnalyzeMaps(), 500);
 
+            // Load profiles
+            _profiles = ProfilePresets.GetPresets();
+
             UpdateModKeywords();
+
+            // Setup profile button handlers
+            Settings.LoadProfile.OnPressed = () => LoadProfile(Settings.ActiveProfile.Value);
+            Settings.SaveCustomProfile.OnPressed = () => SaveCustomProfile();
 
             LogMessage("Maps plugin initialized successfully!", 3);
             return true;
@@ -49,6 +59,11 @@ namespace Maps
                     UpdateModKeywords();
                     _cachedMapData.ForceUpdate();
                     LogMessage("Filter settings reloaded!", 2);
+                }
+
+                if (Settings.CycleProfilesHotkey.PressedOnce())
+                {
+                    CycleProfile();
                 }
 
                 // Get map data
@@ -113,6 +128,84 @@ namespace Maps
                             if (mapData != null)
                             {
                                 mapDataList.Add(mapData);
+                            }
+                        }
+                    }
+                }
+
+                // Also check vendor/merchant windows if enabled
+                if (Settings.HighlightInVendor.Value)
+                {
+                    var purchaseWindow = _ingameState?.IngameUi?.PurchaseWindow;
+                    if (purchaseWindow != null && purchaseWindow.IsVisible)
+                    {
+                        var vendorItems = purchaseWindow?.VisibleInventoryItems;
+                        if (vendorItems != null)
+                        {
+                            foreach (var item in vendorItems)
+                            {
+                                if (item?.Item == null) continue;
+
+                                var mapData = AnalyzeMapItem(item);
+                                if (mapData != null)
+                                {
+                                    mapDataList.Add(mapData);
+                                }
+                            }
+                        }
+                    }
+
+                    // Also check sell window
+                    var sellWindow = _ingameState?.IngameUi?.SellWindow;
+                    if (sellWindow != null && sellWindow.IsVisible)
+                    {
+                        var sellItems = sellWindow?.VisibleInventoryItems;
+                        if (sellItems != null)
+                        {
+                            foreach (var item in sellItems)
+                            {
+                                if (item?.Item == null) continue;
+
+                                var mapData = AnalyzeMapItem(item);
+                                if (mapData != null)
+                                {
+                                    mapDataList.Add(mapData);
+                                }
+                            }
+                        }
+                    }
+
+                    // Check trade window
+                    var tradeWindow = _ingameState?.IngameUi?.TradeWindow;
+                    if (tradeWindow != null && tradeWindow.IsVisible)
+                    {
+                        var tradeItems = tradeWindow?.YourOffer;
+                        if (tradeItems != null)
+                        {
+                            foreach (var item in tradeItems)
+                            {
+                                if (item?.Item == null) continue;
+
+                                var mapData = AnalyzeMapItem(item);
+                                if (mapData != null)
+                                {
+                                    mapDataList.Add(mapData);
+                                }
+                            }
+                        }
+
+                        var theirOffer = tradeWindow?.OtherOffer;
+                        if (theirOffer != null)
+                        {
+                            foreach (var item in theirOffer)
+                            {
+                                if (item?.Item == null) continue;
+
+                                var mapData = AnalyzeMapItem(item);
+                                if (mapData != null)
+                                {
+                                    mapDataList.Add(mapData);
+                                }
                             }
                         }
                     }
@@ -258,16 +351,68 @@ namespace Maps
             // Add points for good mods
             foreach (var mod in mapData.Mods)
             {
-                if (_goodModKeywords.Any(keyword => mod.ToLower().Contains(keyword.ToLower())))
+                if (Settings.UseRegex.Value)
                 {
-                    score += 50;
-                    mapData.HasGoodMods = true;
-                }
+                    // Use regex matching
+                    foreach (var pattern in _goodModKeywords)
+                    {
+                        try
+                        {
+                            if (Regex.IsMatch(mod, pattern, RegexOptions.IgnoreCase))
+                            {
+                                score += 50;
+                                mapData.HasGoodMods = true;
+                                break; // Only count once per mod
+                            }
+                        }
+                        catch
+                        {
+                            // Fallback to simple matching if regex is invalid
+                            if (mod.ToLower().Contains(pattern.ToLower()))
+                            {
+                                score += 50;
+                                mapData.HasGoodMods = true;
+                                break;
+                            }
+                        }
+                    }
 
-                if (_badModKeywords.Any(keyword => mod.ToLower().Contains(keyword.ToLower())))
+                    foreach (var pattern in _badModKeywords)
+                    {
+                        try
+                        {
+                            if (Regex.IsMatch(mod, pattern, RegexOptions.IgnoreCase))
+                            {
+                                score -= 100;
+                                mapData.HasBadMods = true;
+                                break;
+                            }
+                        }
+                        catch
+                        {
+                            if (mod.ToLower().Contains(pattern.ToLower()))
+                            {
+                                score -= 100;
+                                mapData.HasBadMods = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
                 {
-                    score -= 100;
-                    mapData.HasBadMods = true;
+                    // Simple keyword matching
+                    if (_goodModKeywords.Any(keyword => mod.ToLower().Contains(keyword.ToLower())))
+                    {
+                        score += 50;
+                        mapData.HasGoodMods = true;
+                    }
+
+                    if (_badModKeywords.Any(keyword => mod.ToLower().Contains(keyword.ToLower())))
+                    {
+                        score -= 100;
+                        mapData.HasBadMods = true;
+                    }
                 }
             }
 
@@ -399,6 +544,79 @@ namespace Maps
                 .Select(s => s.Trim())
                 .Where(s => !string.IsNullOrEmpty(s))
                 .ToList();
+        }
+
+        private void LoadProfile(string profileName)
+        {
+            try
+            {
+                if (_profiles.ContainsKey(profileName))
+                {
+                    var profile = _profiles[profileName];
+
+                    Settings.MinimumTier.Value = profile.MinTier;
+                    Settings.MaximumTier.Value = profile.MaxTier;
+                    Settings.MinimumQuantity.Value = profile.MinQuantity;
+                    Settings.MinimumRarity.Value = profile.MinRarity;
+                    Settings.MinimumPackSize.Value = profile.MinPackSize;
+                    Settings.GoodModKeywords.Value = profile.GoodMods;
+                    Settings.BadModKeywords.Value = profile.BadMods;
+
+                    UpdateModKeywords();
+                    _cachedMapData.ForceUpdate();
+                    _lastLoadedProfile = profileName;
+
+                    LogMessage($"Loaded profile: {profileName}", 3);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogError($"Error loading profile: {ex.Message}");
+            }
+        }
+
+        private void SaveCustomProfile()
+        {
+            try
+            {
+                var customProfile = new FilterProfile("Custom")
+                {
+                    MinTier = Settings.MinimumTier.Value,
+                    MaxTier = Settings.MaximumTier.Value,
+                    MinQuantity = Settings.MinimumQuantity.Value,
+                    MinRarity = Settings.MinimumRarity.Value,
+                    MinPackSize = Settings.MinimumPackSize.Value,
+                    GoodMods = Settings.GoodModKeywords.Value,
+                    BadMods = Settings.BadModKeywords.Value
+                };
+
+                _profiles["Custom"] = customProfile;
+                LogMessage("Custom profile saved!", 3);
+            }
+            catch (Exception ex)
+            {
+                LogError($"Error saving custom profile: {ex.Message}");
+            }
+        }
+
+        private void CycleProfile()
+        {
+            try
+            {
+                var profileNames = Settings.ActiveProfile.Values;
+                var currentIndex = profileNames.IndexOf(Settings.ActiveProfile.Value);
+                var nextIndex = (currentIndex + 1) % profileNames.Count;
+                var nextProfile = profileNames[nextIndex];
+
+                Settings.ActiveProfile.Value = nextProfile;
+                LoadProfile(nextProfile);
+
+                LogMessage($"Switched to profile: {nextProfile}", 2);
+            }
+            catch (Exception ex)
+            {
+                LogError($"Error cycling profile: {ex.Message}");
+            }
         }
     }
 
